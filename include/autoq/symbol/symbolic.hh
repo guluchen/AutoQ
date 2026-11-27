@@ -28,6 +28,7 @@ struct AUTOQ::Symbol::Symbolic : AUTOQ::Symbol::SymbolBase<Symbolic> {
     Symbolic(const std::map<AUTOQ::Complex::Term, AUTOQ::Complex::Complex> &c) : SymbolBase<Symbolic>(false), complex(AUTOQ::Complex::SymbolicComplex::MySymbolicComplexConstructor(c)) {}
     Symbolic(const AUTOQ::Complex::SymbolicComplex &c) : SymbolBase<Symbolic>(false), complex(c) {}
     Symbolic() : SymbolBase<Symbolic>(false), complex() {} // prevent the compiler from complaining about the lack of default constructor
+    explicit Symbolic(WildcardAmplitude wildcard) : SymbolBase<Symbolic>(wildcard), complex() {}
 
     boost::multiprecision::cpp_int qubit() const {
         if (!is_internal()) {
@@ -42,14 +43,16 @@ struct AUTOQ::Symbol::Symbolic : AUTOQ::Symbol::SymbolBase<Symbolic> {
         return ss.str();
     }
     friend std::ostream& operator<<(std::ostream& os, const Symbolic& obj) {
-        os << AUTOQ::Util::Convert::ToString(obj.complex);
+        if (obj.is_wildcard())
+            os << '*';
+        else
+            os << AUTOQ::Util::Convert::ToString(obj.complex);
         return os;
     }
-    bool operator==(const Symbolic &o) const { return is_internal() == o.is_internal() && complex == o.complex; }
+    bool operator==(const Symbolic &o) const { return kind_ == o.kind_ && (is_wildcard() || complex == o.complex); }
     bool operator<(const Symbolic &o) const {
-        if (is_internal() && !o.is_internal()) return true;
-        if (o.is_internal() && !is_internal()) return false;
-        return complex < o.complex;
+        if (kind_ != o.kind_) return kind_ < o.kind_;
+        return !is_wildcard() && complex < o.complex;
     }
     Symbolic operator+(const Symbolic &o) const {
         return Symbolic(complex + o.complex);
@@ -116,6 +119,7 @@ struct AUTOQ::Symbol::Symbolic : AUTOQ::Symbol::SymbolBase<Symbolic> {
 namespace boost {
     template <> struct hash<AUTOQ::Symbol::Symbolic> {
         size_t operator()(const AUTOQ::Symbol::Symbolic& obj) const {
+            if (obj.is_wildcard()) return boost::hash_value('*');
             std::size_t seed = 0;
             boost::hash_combine(seed, obj.is_internal());
             boost::hash_combine(seed, obj.complex);

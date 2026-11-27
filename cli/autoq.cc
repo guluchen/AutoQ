@@ -168,6 +168,8 @@ void print_equivalence_result(bool result,
 }  // namespace
 
 using AUTOQ::adjust_N_in_nTuple;
+using AUTOQ::InclusionMode;
+using AUTOQ::Parsing::AutomatonRole;
 
 template<typename Symbol>
 static void run_execution_impl(const std::string& pre, const std::string& circuit,
@@ -217,10 +219,10 @@ static void run_equivalence(const std::string& circuit1, const std::string& circ
 
 template<typename Symbol>
 static void run_verification_impl(const std::string& pre, const std::string& post, const std::string& circuit,
-                                  const ParameterMap& params, bool latex,
+                                  const ParameterMap& params, bool latex, InclusionMode mode,
                                   const chrono::steady_clock::time_point& start) {
     const auto parse_start = std::chrono::steady_clock::now();
-    auto [autVec, qp] = AUTOQ::Parsing::TimbukParser<Symbol>::ReadTwoAutomata(pre, post, circuit);
+    auto [autVec, qp] = AUTOQ::Parsing::TimbukParser<Symbol>::ReadTwoAutomata(pre, post, circuit, AutomatonRole::Postcondition);
     const auto parse_end = std::chrono::steady_clock::now();
     auto aut = autVec.at(0);
     auto spec = autVec.at(1);
@@ -228,7 +230,7 @@ static void run_verification_impl(const std::string& pre, const std::string& pos
     aut.execution_stats()->endFromFileToAutomata = parse_end;
     autVec.erase(autVec.begin(), autVec.begin() + kAutVecEraseCount);
     bool verify = aut.execute(circuit, qp, autVec, params);
-    verify &= (aut <<= spec);
+    verify &= aut.scaled_inclusion(std::move(spec), mode);
     if (latex)
         aut.print_stats();
     else
@@ -236,14 +238,14 @@ static void run_verification_impl(const std::string& pre, const std::string& pos
 }
 
 static void run_verification(const std::string& pre, const std::string& post, const std::string& circuit,
-                             const ParameterMap& params, bool latex,
+                             const ParameterMap& params, bool latex, InclusionMode mode,
                              const chrono::steady_clock::time_point& start) {
-    auto spec1 = ReadAutomaton(post);
+    auto spec1 = ReadAutomaton(post, AutomatonRole::Postcondition);
     auto pre1 = ReadAutomaton(pre);
     if (std::holds_alternative<AUTOQ::SymbolicAutomata>(spec1) || std::holds_alternative<AUTOQ::SymbolicAutomata>(pre1) || AUTOQ::SymbolicAutomata::check_the_invariants_types(circuit) == "Symbolic") {
         if (std::holds_alternative<AUTOQ::PredicateAutomata>(pre1))
             THROW_AUTOQ_ERROR(EM::kPredicatePrecondition);
-        run_verification_impl<AUTOQ::Symbol::Symbolic>(pre, post, circuit, params, latex, start);
+        run_verification_impl<AUTOQ::Symbol::Symbolic>(pre, post, circuit, params, latex, mode, start);
     } else if (std::holds_alternative<AUTOQ::PredicateAutomata>(spec1)) {
         THROW_AUTOQ_ERROR(EM::kPredicateAutomataPost);
     } else if (std::holds_alternative<AUTOQ::ConcreteAutomata>(spec1)) {
@@ -251,7 +253,7 @@ static void run_verification(const std::string& pre, const std::string& post, co
             if constexpr (!std::is_same_v<std::decay_t<decltype(arg)>, AUTOQ::ConcreteAutomata>)
                 THROW_AUTOQ_ERROR(EM::kConcretePostPre);
         }, pre1);
-        run_verification_impl<AUTOQ::Symbol::Concrete>(pre, post, circuit, params, latex, start);
+        run_verification_impl<AUTOQ::Symbol::Concrete>(pre, post, circuit, params, latex, mode, start);
     } else {
         THROW_AUTOQ_ERROR(EM::kUnsupportedPostType);
     }
@@ -277,11 +279,13 @@ try {
     });
 
     bool latex = false;
+    bool color_inclusion = false;
     CLI::App* verification = app.add_subcommand("ver", "Verify the execution result against a given postcondition.");
     verification->add_option(kOptPreHsl, pre, kPreFileOpt)->required()->type_name("");
     verification->add_option(kOptCircuitQasm, circuit, kCircuitFileOpt)->required()->type_name("");
     verification->add_option(kOptPostHsl, post, kPostFileOpt)->required()->type_name("");
     verification->add_flag("--loopsum", summarize_loops, kLoopsumOpt);
+    verification->add_flag("--color-inclusion", color_inclusion, "Require the postcondition to match every output along the same sequence of colors.");
     verification->add_flag("-l,--latex", latex, kLatexOpt);
     verification->callback([&]() {
         adjust_N_in_nTuple(circuit);
@@ -322,7 +326,8 @@ try {
     if (execution->parsed()) {
         run_execution(pre, circuit, params);
     } else if (verification->parsed()) {
-        run_verification(pre, post, circuit, params, latex, start);
+        const auto mode = color_inclusion ? InclusionMode::SameColorSequence : InclusionMode::IndependentColors;
+        run_verification(pre, post, circuit, params, latex, mode, start);
     } else if (equivalence_checking->parsed()) {
         run_equivalence(circuit1, circuit2, params, latex, start);
     } else if (print->parsed()) {

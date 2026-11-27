@@ -1,8 +1,0 @@
-Extended Dirac
-{b |0101001> + a ∑ |i|=4, i≠0101 |i001>}
-Constraints
-15 * real(a) > real(b)
-real(a) > 0
-real(b) > 0
-imag(a) = 0
-imag(b) = 0

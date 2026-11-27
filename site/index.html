@@ -1099,33 +1099,43 @@ h qb[1];</code></pre>
           </li>
           <li>
             <h3 class="qs-h">Verify a program</h3>
-            <p><code>ver</code> is the mode used most often in the AutoQ papers. It takes a precondition, a circuit and a postcondition. Here it checks the README’s example, a Grover’s search benchmark on five qubits.</p>
+            <p><code>ver</code> is the mode used most often in the AutoQ papers. It takes a precondition, a circuit and a postcondition. Here it checks that the middle qubit returns to zero in the README’s clean ancilla example.</p>
             <figure class="code" data-copy>
               <figcaption class="cap">Verify the example</figcaption>
-<pre tabindex="0"><code><span class="pr">$ </span><span class="cmd">./build/cli/autoq ver \
-    benchmarks/all/Grover/03/pre.hsl \
-    benchmarks/all/Grover/03/circuit.qasm \
-    benchmarks/all/Grover/03/post.hsl</span><span class="out flow">The quantum program has [5] qubits and [52] gates. The verification process <span class="ok">[OK]</span> in [0.1s] with [77MB] memory usage.</span></code></pre>
+<pre tabindex="0"><code><span class="pr">$ </span><span class="cmd">./build/cli/autoq ver --color-inclusion \
+    demo/ancilla-q1/pre.lsta \
+    demo/ancilla-q1/circuit.qasm \
+    demo/ancilla-q1/post.lsta</span><span class="out flow">The quantum program has [3] qubits and [4] gates. The verification process <span class="ok">[OK]</span> in [0.0s] with [6MB] memory usage.</span></code></pre>
             </figure>
             <p class="small">Times and memory figures in the outputs on this page come from one machine and will vary on yours.</p>
             <div class="pair lopsided">
               <figure class="code">
-                <figcaption class="cap"><code>pre.hsl</code></figcaption>
-<pre tabindex="0"><code><span class="kw">Constants</span>
-c1 := 1
-<span class="kw">Extended Dirac</span>
-{c1 |00000&gt;}</code></pre>
+                <figcaption class="cap"><code>pre.lsta</code></figcaption>
+<pre tabindex="0"><code>Root States b1
+Transitions
+[1,1](b2,z2) -&gt; b1
+[1,2](z2,b2) -&gt; b1
+[2,1](b3,z3) -&gt; b2
+[2,1](z3,z3) -&gt; z2
+[3,1](b4,z4) -&gt; b3
+[3,2](z4,b4) -&gt; b3
+[3,3](z4,z4) -&gt; z3
+[1,1] -&gt; b4
+[0,1] -&gt; z4</code></pre>
               </figure>
               <figure class="code">
-                <figcaption class="cap"><code>post.hsl</code></figcaption>
-<pre tabindex="0"><code><span class="kw">Constants</span>
-aH := 11 / (sqrt2 ^ 7)
-aL := -1 / (sqrt2 ^ 7)
-<span class="kw">Extended Dirac</span>
-{aH |01001&gt; + aL ∑ |i|=3, i≠010 |i01&gt;}</code></pre>
+                <figcaption class="cap"><code>post.lsta</code></figcaption>
+<pre tabindex="0"><code>Root States f1
+Transitions
+[1,3](f2,f2) -&gt; f1
+[2,1](f3,z3) -&gt; f2
+[3,3](f4,f4) -&gt; f3
+[3,3](z4,z4) -&gt; z3
+[*,1] -&gt; f4
+[0,1] -&gt; z4</code></pre>
               </figure>
             </div>
-            <p class="small">The <a href="https://github.com/fmlab-iis/AutoQ/tree/main/demo">demo</a> folder has more small examples, including Bernstein–Vazirani and a Grover iteration.</p>
+            <p class="small">The <a href="https://github.com/fmlab-iis/AutoQ/tree/main/demo">demo guide</a> covers the first, middle and last qubit positions and includes circuits that leave the ancilla uncomputed.</p>
           </li>
         </ol>
       </div>
@@ -1138,7 +1148,7 @@ aL := -1 / (sqrt2 ^ 7)
     <h3>Commands</h3>
         <dl class="cmds">
           <div><dt>ex</dt><dd><code class="use">autoq ex [OPTIONS] pre.hsl circuit.qasm</code><br>Execute a quantum circuit with a given precondition.<br><span class="opts">Option: <code>--loopsum</code></span></dd></div>
-          <div><dt>ver</dt><dd><code class="use">autoq ver [OPTIONS] pre.hsl circuit.qasm post.hsl</code><br>Verify the execution result against a given postcondition.<br><span class="opts">Options: <code>--loopsum</code>, <code>-l, --latex</code></span></dd></div>
+          <div><dt>ver</dt><dd><code class="use">autoq ver [OPTIONS] pre.hsl circuit.qasm post.hsl</code><br>Verify the execution result against a given postcondition.<br><span class="opts">Options: <code>--loopsum</code>, <code>--color-inclusion</code>, <code>-l, --latex</code></span></dd></div>
           <div><dt>eq</dt><dd><code class="use">autoq eq [OPTIONS] circuit1.qasm circuit2.qasm</code><br>Check equivalence of two given quantum circuits. <code>eq</code> does not accept <code>if</code> or <code>while</code>.<br><span class="opts">Option: <code>--loopsum</code></span></dd></div>
           <div><dt>print</dt><dd><code class="use">autoq print [OPTIONS] states.hsl</code><br>Print the set of quantum states.</dd></div>
         </dl>
@@ -1162,12 +1172,12 @@ aL := -1 / (sqrt2 ^ 7)
         <p>An amplitude may use names that are not declared in the <code>Constants</code> section. AutoQ treats them as free symbolic variables, which the optional <code>Constraints</code> section can restrict. The precondition below, <span class="m">{<i>x</i>|0⟩ + <i>y</i>|1⟩}</span>, therefore stands for every state of that form, and the postcondition requires each amplitude to come back unchanged.</p>
         <div class="pair">
           <figure class="code" data-copy>
-            <figcaption class="cap"><code>benchmarks/all/H2Sym/pre.hsl</code></figcaption>
+            <figcaption class="cap"><code>pre.hsl</code></figcaption>
 <pre tabindex="0"><code><span class="kw">Extended Dirac</span>
 {x |0&gt; + y |1&gt;}</code></pre>
           </figure>
           <figure class="code" data-copy>
-            <figcaption class="cap"><code>benchmarks/all/H2Sym/post.hsl</code></figcaption>
+            <figcaption class="cap"><code>post.hsl</code></figcaption>
 <pre tabindex="0"><code><span class="kw">Extended Dirac</span>
 {p1 |0&gt; + p2 |1&gt;}
 <span class="kw">Constraints</span>
@@ -1208,7 +1218,7 @@ y qubits[0];
         <p>A program can measure a qubit into a classical bit and then branch on it with <code>if</code> and <code>else</code>, or loop on it with <code>while</code>. The <code>if</code> block runs on the states where the outcome is 1, the <code>else</code> block on those where it is 0, and AutoQ joins the two results. Both <code>if (!c)</code> and <code>while (!c)</code> are allowed, and <code>else</code> is optional.</p>
         <p>A <code>while</code> loop needs a measurement just before the loop and at the end of its body, plus a loop invariant: a set of states in its own <code>.hsl</code> file, named in a comment on the <code>while</code> line. AutoQ checks that the states reaching the loop lie in the invariant, and that one pass of the body maps the invariant’s continuing states back into it. It then carries on with the states that leave the loop.</p>
         <figure class="code" data-copy>
-          <figcaption class="cap"><code>benchmarks/all/control_mini/while/circuit.qasm</code></figcaption>
+          <figcaption class="cap"><code>circuit.qasm</code></figcaption>
 <pre tabindex="0"><code>OPENQASM 3;
 include "stdgates.inc";
 qubit[2] qb;
@@ -1247,7 +1257,7 @@ while (!outcome[0]) { <span class="cm">// loop-invariant.hsl</span>
         <p>AutoQ does not normalize amplitudes after a measurement. Results stay valid, because every non-normalized state has a unique positive factor that normalizes it.</p>
         <p>Paths to loop-invariant files are relative to the circuit file.</p>
         <p>Put <code>else {</code> on its own line, not on the line of the closing <code>}</code> of the <code>if</code> block.</p>
-        <p>More examples: <a href="https://github.com/fmlab-iis/AutoQ/tree/main/benchmarks/all/control_mini">control_mini</a>, and the <code>RUS</code> and <code>GroverWhile</code> benchmarks.</p>
+        <p>More examples: <a href="https://github.com/fmlab-iis/AutoQ/tree/7eed39ad7ba5615a87c3f532a24f866e08967c12/benchmarks/all/control_mini">control_mini</a>, and the <code>RUS</code> and <code>GroverWhile</code> benchmarks.</p>
       </aside>
     </div>
 
@@ -1434,7 +1444,7 @@ cn := -1/sqrt2
           <p class="venue">Proceedings of the ACM on Programming Languages 9 (POPL), 2025, pp. 923–953</p>
           <div class="acts">
             <a href="https://doi.org/10.1145/3704868">doi:10.1145/3704868</a>
-            <a href="https://github.com/fmlab-iis/AutoQ/tree/main/benchmarks/POPL25">Benchmarks: POPL25</a>
+            <a href="https://github.com/fmlab-iis/AutoQ/tree/7eed39ad7ba5615a87c3f532a24f866e08967c12/benchmarks/POPL25">Benchmarks: POPL25</a>
             <button type="button" class="btn-quiet js-only" data-copy-target="bib-popl">Copy BibTeX</button>
           </div>
         </div>
@@ -1462,7 +1472,7 @@ cn := -1/sqrt2
           <p class="venue">International Conference on Tools and Algorithms for the Construction and Analysis of Systems (TACAS), 2025, pp. 87–108</p>
           <div class="acts">
             <a href="https://doi.org/10.1007/978-3-031-90660-2_5">doi:10.1007/978-3-031-90660-2_5</a>
-            <a href="https://github.com/fmlab-iis/AutoQ/tree/main/benchmarks/TACAS25">Benchmarks: TACAS25</a>
+            <a href="https://github.com/fmlab-iis/AutoQ/tree/7eed39ad7ba5615a87c3f532a24f866e08967c12/benchmarks/TACAS25">Benchmarks: TACAS25</a>
             <button type="button" class="btn-quiet js-only" data-copy-target="bib-tacas">Copy BibTeX</button>
           </div>
         </div>
@@ -1483,7 +1493,7 @@ cn := -1/sqrt2
     </ol>
     <div class="row">
       <div class="main">
-        <p class="caption">The <a href="https://github.com/fmlab-iis/AutoQ/tree/main/benchmarks">benchmarks</a> folder holds all the files used to produce the experimental results.</p>
+        <p class="caption">The <a href="https://github.com/fmlab-iis/AutoQ/tree/7eed39ad7ba5615a87c3f532a24f866e08967c12/benchmarks">archived benchmark suite</a> holds all the files used to produce the experimental results.</p>
       </div>
     </div>
   </div>
@@ -1529,7 +1539,7 @@ cn := -1/sqrt2
     <nav class="flinks" aria-label="Project links">
       <a href="https://github.com/fmlab-iis/AutoQ">Source</a>
       <a href="https://github.com/fmlab-iis/AutoQ/issues">Issues</a>
-      <a href="https://github.com/fmlab-iis/AutoQ/tree/main/benchmarks">Benchmarks</a>
+      <a href="https://github.com/fmlab-iis/AutoQ/tree/7eed39ad7ba5615a87c3f532a24f866e08967c12/benchmarks">Benchmarks</a>
       <a href="#top">Back to top</a>
     </nav>
   </div>

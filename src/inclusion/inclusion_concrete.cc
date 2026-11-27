@@ -34,15 +34,16 @@ struct ConcreteLeafPolicy {
         return true;
     }
     void record_feasible(const std::set<std::pair<AUTOQ::Symbol::Concrete, AUTOQ::Symbol::Concrete>>&) {}
-    bool leaf_vertex_fails(const AUTOQ::ConcreteAutomata&, const AUTOQ::ConcreteAutomata&) const { return false; }
+    bool leaf_vertex_fails(const AUTOQ::ConcreteAutomata&, const AUTOQ::ConcreteAutomata&, bool has_match) const { return !has_match; }
 };
 
 }  // namespace
 
 template <>
-bool AUTOQ::ConcreteAutomata::operator<<=(AUTOQ::ConcreteAutomata autB) const {
+bool AUTOQ::ConcreteAutomata::scaled_inclusion(AUTOQ::ConcreteAutomata autB, InclusionMode mode) const {
     const auto &autA = *this;
-    autB = autB.operator||(AUTOQ::ConcreteAutomata::zero_amplitude(autB.qubitNum));
+    if (mode == InclusionMode::IndependentColors)
+        autB = autB.operator||(AUTOQ::ConcreteAutomata::zero_amplitude(autB.qubitNum));
     auto start_include = std::chrono::steady_clock::now();
 
     std::vector<std::map<AUTOQ::ConcreteAutomata::SymbolTag, AUTOQ::ConcreteAutomata::StateVector>> transA;
@@ -50,11 +51,15 @@ bool AUTOQ::ConcreteAutomata::operator<<=(AUTOQ::ConcreteAutomata autB) const {
     AUTOQ::build_inclusion_trans(autA, autB, transA, transB);
 
     ConcreteLeafPolicy policy;
-    bool holds = AUTOQ::inclusion_bfs_holds(autA, autB, transA, transB, policy);
+    bool holds = AUTOQ::inclusion_bfs_holds(autA, autB, transA, transB, policy, mode);
     auto stop_include = std::chrono::steady_clock::now();
     this->stats_->include_status = AUTOQ::Util::Convert::ToString(stop_include - start_include) + (holds ? "" : " X");
     this->stats_->total_include_time += stop_include - start_include;
     return holds;
+}
+template <>
+bool AUTOQ::ConcreteAutomata::operator<<=(AUTOQ::ConcreteAutomata autB) const {
+    return scaled_inclusion(std::move(autB), InclusionMode::IndependentColors);
 }
 template <>
 bool AUTOQ::ConcreteAutomata::operator_scaled_inclusion_with_renaming(AUTOQ::ConcreteAutomata autB) const {

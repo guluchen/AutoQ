@@ -1,8 +1,0 @@
-Extended Dirac
-{b |01010100001> + a ∑ |i|=6, i≠010101 |i00001>}
-Constraints
-63 * real(a) > real(b)
-real(a) > 0
-real(b) > 0
-imag(a) = 0
-imag(b) = 0

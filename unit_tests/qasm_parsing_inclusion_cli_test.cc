@@ -180,11 +180,27 @@ static std::pair<int, std::string> run_cli(const std::string& args)
 // them apart. This test has to see the verdict (#44).
 BOOST_AUTO_TEST_CASE(cli_subprocess_verification)
 {
-    std::string folder = test_dir_from_file(__FILE__, "../benchmarks/all/BV/03/");
+    std::string folder = test_dir_from_file(__FILE__, "testcase/GroverFor/");
     auto [code, output] = run_cli("ver \"" + folder + "pre.hsl\" \"" + folder + "circuit.qasm\" \"" + folder + "post.hsl\"");
     BOOST_REQUIRE_MESSAGE(code == 0, "CLI did not exit 0 (status " + std::to_string(code) + "):\n" + output);
     BOOST_REQUIRE_MESSAGE(output.find("The verification process [OK]") != std::string::npos,
         "CLI verification did not report [OK]:\n" + output);
+}
+
+BOOST_AUTO_TEST_CASE(clean_ancilla_demo_covers_each_qubit_position)
+{
+    const auto demo = test_dir_from_file(__FILE__, "../demo/");
+    for (int qubit = 0; qubit < 3; ++qubit) {
+        const auto dir = demo + "ancilla-q" + std::to_string(qubit) + "/";
+        const auto [ok_code, ok_output] = run_cli("ver --color-inclusion \"" + dir + "pre.lsta\" \""
+            + dir + "circuit.qasm\" \"" + dir + "post.lsta\"");
+        BOOST_CHECK_MESSAGE(ok_code == 0 && ok_output.find("The verification process [OK]") != std::string::npos,
+            dir + ": " + ok_output);
+        const auto [leak_code, leak_output] = run_cli("ver --color-inclusion \"" + dir + "pre.lsta\" \""
+            + dir + "leak.qasm\" \"" + dir + "post.lsta\"");
+        BOOST_CHECK_MESSAGE(leak_code == 0 && leak_output.find("The verification process [failed]") != std::string::npos,
+            dir + ": " + leak_output);
+    }
 }
 
 // Malformed input must be reported as "[ERROR] ..." with exit status 1, not
@@ -498,6 +514,36 @@ BOOST_AUTO_TEST_CASE(integer_leaf_is_an_amplitude)
     BOOST_CHECK_EQUAL(neg_code, 0);
     BOOST_CHECK_MESSAGE(neg_out.find("|0>") != std::string::npos, neg_out);
     BOOST_CHECK_MESSAGE(neg_out.find("map::at") == std::string::npos, neg_out);
+}
+
+BOOST_AUTO_TEST_CASE(lsta_postcondition_wildcard_and_color_inclusion)
+{
+    const std::string dir = test_dir_from_file(__FILE__, "testcase/WildcardPostcondition/");
+    auto file = [&](const std::string& name) { return "\"" + dir + name + "\""; };
+    auto verify = [&](const std::string& pre, const std::string& circuit, const std::string& post,
+                      const std::string& verdict, const std::string& options = "") {
+        const auto [code, output] = run_cli("ver " + file(pre) + " " + file(circuit) + " " + file(post) + options);
+        BOOST_CHECK_MESSAGE(code == 0, output);
+        BOOST_CHECK_MESSAGE(output.find("The verification process " + verdict) != std::string::npos, output);
+    };
+
+    // H then S gives different amplitudes to the two leaves sharing the wildcard state.
+    for (const std::string pre : {"pre.lsta", "pre_symbolic.lsta"}) {
+        verify(pre, "safe.qasm", "post.lsta", "[OK]");
+        verify(pre, "leak.qasm", "post.lsta", "[failed]");
+        // The root admits both colors. Each can use a different postcondition root,
+        // but a later match from one root cannot cover the other color sequence.
+        verify(pre, "safe.qasm", "post_complete_colors.lsta", "[OK]", " --color-inclusion");
+        verify(pre, "safe.qasm", "post_incomplete_colors.lsta", "[OK]");
+        verify(pre, "safe.qasm", "post_incomplete_colors.lsta", "[failed]", " --color-inclusion");
+        verify(pre, "safe.qasm", "post.lsta", "[failed]", " --color-inclusion");
+    }
+    verify("pre_symbolic.lsta", "leak.qasm", "post_any.lsta", "[OK]");
+    verify("pre.lsta", "safe.qasm", "post_unsynchronized.lsta", "[failed]");
+
+    const auto [code, output] = run_cli("ver " + file("post.lsta") + " " + file("safe.qasm") + " " + file("post.lsta"));
+    BOOST_CHECK_EQUAL(code, 1);
+    BOOST_CHECK_MESSAGE(output.find("only supported in .lsta postconditions") != std::string::npos, output);
 }
 
 // .aut is not a supported input. It must get the same extension error as any

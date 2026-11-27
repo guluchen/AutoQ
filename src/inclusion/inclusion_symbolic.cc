@@ -54,7 +54,7 @@ namespace {
 void rename_symbolic_aut_vars(AUTOQ::SymbolicAutomata& aut, const std::string& prefix) {
     auto transitions2 = aut.transitions;
     for (const auto &tr : transitions2) {
-        if (tr.first.symbol().is_leaf()) {
+        if (tr.first.symbol().is_leaf() && !tr.first.symbol().is_wildcard()) {
             AUTOQ::Complex::SymbolicComplex complex_new;
             for (const auto &t_c : tr.first.symbol().complex) {
                 AUTOQ::Complex::Term term2;
@@ -122,9 +122,14 @@ bool symbolic_leaf_pairs_smt_is_sat(
     assertion += ")\n(or\n";
     assertion += "(not " + autB.constraints + ")\n";
     assertion += "(and (= ratioR 0) (= ratioI 0))\n";
-    assertion += "(and ";
+    assertion += "(and true ";
     int counter = 0;
     for (const auto &leaf_pairs_of_one_new_cell : leaf_pairs_of_one_new_vertex) {
+        // A run with only wildcard leaves has no failed amplitude equations.
+        if (leaf_pairs_of_one_new_cell.empty()) {
+            assertion += "false\n";
+            continue;
+        }
         assertion += "(or ";
         for (const auto &pair : leaf_pairs_of_one_new_cell) {
             define_varA += "(define-fun E" + std::to_string(counter) + "r () Real " + pair.first.complex.realToSMT() + "); " + (std::ostringstream{} << pair.first).str() + "\n";
@@ -172,16 +177,17 @@ struct SymbolicLeafPolicy {
     void record_feasible(const std::set<std::pair<AUTOQ::Symbol::Symbolic, AUTOQ::Symbol::Symbolic>>& leaf_pairs) {
         leaf_pairs_of_one_new_vertex.insert(leaf_pairs);
     }
-    bool leaf_vertex_fails(const AUTOQ::SymbolicAutomata& autA, const AUTOQ::SymbolicAutomata& autB) const {
+    bool leaf_vertex_fails(const AUTOQ::SymbolicAutomata& autA, const AUTOQ::SymbolicAutomata& autB, bool) const {
         return symbolic_leaf_pairs_smt_is_sat(autA, autB, leaf_pairs_of_one_new_vertex);
     }
 };
 
 // Prepare autA/autB for scaled inclusion: normalize constraints, add zero amplitude to B, optional variable renaming.
-static void prepare_aut_for_scaled_inclusion(AUTOQ::SymbolicAutomata& autA, AUTOQ::SymbolicAutomata& autB, bool renaming) {
+static void prepare_aut_for_scaled_inclusion(AUTOQ::SymbolicAutomata& autA, AUTOQ::SymbolicAutomata& autB, bool renaming, AUTOQ::InclusionMode mode) {
     if (AUTOQ::String::trim(autA.constraints).empty()) autA.constraints = "true";
     if (AUTOQ::String::trim(autB.constraints).empty()) autB.constraints = "true";
-    autB = autB.operator||(AUTOQ::SymbolicAutomata::zero_amplitude(autB.qubitNum));
+    if (mode == AUTOQ::InclusionMode::IndependentColors)
+        autB = autB.operator||(AUTOQ::SymbolicAutomata::zero_amplitude(autB.qubitNum));
     if (renaming) {
         rename_symbolic_aut_vars(autA, "R_");
         rename_symbolic_aut_vars(autB, "Q_");
@@ -191,8 +197,8 @@ static void prepare_aut_for_scaled_inclusion(AUTOQ::SymbolicAutomata& autA, AUTO
 }  // namespace
 
 // -------- Inclusion: Symbolic automata (scaled inclusion) --------
-bool scaled_inclusion_with_or_without_renaming(AUTOQ::SymbolicAutomata autA, AUTOQ::SymbolicAutomata autB, bool renaming) {
-    prepare_aut_for_scaled_inclusion(autA, autB, renaming);
+bool scaled_inclusion_with_or_without_renaming(AUTOQ::SymbolicAutomata autA, AUTOQ::SymbolicAutomata autB, bool renaming, AUTOQ::InclusionMode mode) {
+    prepare_aut_for_scaled_inclusion(autA, autB, renaming, mode);
 
     auto start_include = std::chrono::steady_clock::now();
     std::vector<std::map<AUTOQ::SymbolicAutomata::SymbolTag, AUTOQ::SymbolicAutomata::StateVector>> transA;
@@ -200,19 +206,22 @@ bool scaled_inclusion_with_or_without_renaming(AUTOQ::SymbolicAutomata autA, AUT
     AUTOQ::build_inclusion_trans(autA, autB, transA, transB);
 
     SymbolicLeafPolicy policy;
-    bool holds = AUTOQ::inclusion_bfs_holds(autA, autB, transA, transB, policy);
+    bool holds = AUTOQ::inclusion_bfs_holds(autA, autB, transA, transB, policy, mode);
     auto stop_include = std::chrono::steady_clock::now();
     autA.stats_->include_status = AUTOQ::Util::Convert::ToString(stop_include - start_include) + (holds ? "" : " X");
     autA.stats_->total_include_time += stop_include - start_include;
     return holds;
 }
 template <>
-// -------- SymbolicAutomata::operator<<= --------
+bool AUTOQ::SymbolicAutomata::scaled_inclusion(AUTOQ::SymbolicAutomata autB, InclusionMode mode) const {
+    return scaled_inclusion_with_or_without_renaming(*this, std::move(autB), false, mode);
+}
+template <>
 bool AUTOQ::SymbolicAutomata::operator<<=(AUTOQ::SymbolicAutomata autB) const {
-    return scaled_inclusion_with_or_without_renaming(*this, autB, false);
+    return scaled_inclusion(std::move(autB), InclusionMode::IndependentColors);
 }
 template <>
 bool AUTOQ::SymbolicAutomata::operator_scaled_inclusion_with_renaming(AUTOQ::SymbolicAutomata autB) const {
-    return scaled_inclusion_with_or_without_renaming(*this, autB, true);
+    return scaled_inclusion_with_or_without_renaming(*this, std::move(autB), true, InclusionMode::IndependentColors);
 }
 

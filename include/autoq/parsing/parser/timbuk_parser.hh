@@ -20,6 +20,7 @@ namespace AUTOQ
 {
 	namespace Parsing
 	{
+		enum class AutomatonRole { StateSet, Postcondition };
 		template <typename SymbolType>
         struct TimbukParser;
 	}
@@ -35,14 +36,14 @@ template <typename SymbolType>
 struct AUTOQ::Parsing::TimbukParser
 {
     // static AUTOQ::Automata<SymbolType> ParseString(std::string fileContents);
-    static AUTOQ::Automata<SymbolType> ReadAutomaton(const std::string& filepath);
-    static AUTOQ::Automata<SymbolType> ReadAutomaton(const std::string& filepath, bool throw_on_undefined, bool* out_encountered_undefined = nullptr);
+    static AUTOQ::Automata<SymbolType> ReadAutomaton(const std::string& filepath, AutomatonRole role = AutomatonRole::StateSet);
+    static AUTOQ::Automata<SymbolType> ReadAutomaton(const std::string& filepath, bool throw_on_undefined, bool* out_encountered_undefined = nullptr, AutomatonRole role = AutomatonRole::StateSet);
     static AUTOQ::Automata<SymbolType> parse_extended_dirac_from_istream(std::istream *is, bool throw_on_undefined, bool* out_encountered_undefined, const std::map<std::string, AUTOQ::Complex::Complex> &constants = {}, const std::string &predicateConstraints = "");
-    static std::pair<std::vector<AUTOQ::Automata<SymbolType>>, std::vector<int>> ReadTwoAutomata(const std::string& filepath1, const std::string& filepath2, const std::string &circuitPath = "");
+    static std::pair<std::vector<AUTOQ::Automata<SymbolType>>, std::vector<int>> ReadTwoAutomata(const std::string& filepath1, const std::string& filepath2, const std::string &circuitPath = "", AutomatonRole secondRole = AutomatonRole::StateSet);
     static std::pair<std::vector<AUTOQ::Automata<SymbolType>>, std::vector<int>> parse_n_extended_diracs_from_istream(std::vector<std::istream*> isVec, const std::vector<std::map<std::string, AUTOQ::Complex::Complex>> &constantsVec, const std::vector<std::string> &predicateConstraintsVec);
 };
 
-std::variant<AUTOQ::Automata<AUTOQ::Symbol::Concrete>, AUTOQ::Automata<AUTOQ::Symbol::Symbolic>, AUTOQ::Automata<AUTOQ::Symbol::Predicate>> ReadAutomaton(const std::string& filepath);
+std::variant<AUTOQ::Automata<AUTOQ::Symbol::Concrete>, AUTOQ::Automata<AUTOQ::Symbol::Symbolic>, AUTOQ::Automata<AUTOQ::Symbol::Predicate>> ReadAutomaton(const std::string& filepath, AUTOQ::Parsing::AutomatonRole role = AUTOQ::Parsing::AutomatonRole::StateSet);
 std::variant<AUTOQ::Automata<AUTOQ::Symbol::Concrete>, AUTOQ::Automata<AUTOQ::Symbol::Predicate>> ReadPossiblyPredicateAutomaton(const std::string& filepath);
 
 #endif

@@ -1,0 +1,7 @@
+Root States root
+Transitions
+[1,3](data,zero) -> root
+[2,1](one,z) -> data
+[2,1](z,z) -> zero
+[1,1] -> one
+[0,1] -> z

@@ -16,7 +16,7 @@ namespace AUTOQ
 struct AUTOQ::Symbol::Index : AUTOQ::Symbol::SymbolBase<Index> {
     int index;
     Index() : SymbolBase<Index>(false), index() {} // default: leaf (internal_ = false)
-    Index(bool is_leaf_v, int idx) : SymbolBase<Index>(!is_leaf_v), index(idx) {} // internal_ = true when is_leaf_v is false
+    Index(bool is_leaf_v, int idx) : SymbolBase<Index>(!is_leaf_v), index(idx) {}
 
     int qubit() const {
         if (is_leaf()) {

@@ -13,16 +13,21 @@
 namespace AUTOQ {
 namespace Symbol {
 
-/** CRTP base: holds internal/leaf flag and provides is_internal() / is_leaf(). */
+struct WildcardAmplitude {};
+
+/** CRTP base for internal symbols and leaf labels. */
 template <typename Derived>
 struct SymbolBase {
-    bool is_internal() const { return internal_; }
-    bool is_leaf() const { return !internal_; }
+    bool is_internal() const { return kind_ == Kind::Internal; }
+    bool is_leaf() const { return !is_internal(); }
+    bool is_wildcard() const { return kind_ == Kind::Wildcard; }
 
 protected:
-    bool internal_{false};
+    enum class Kind : unsigned char { Internal, Amplitude, Wildcard };
+    Kind kind_{Kind::Amplitude};
     SymbolBase() = default;
-    explicit SymbolBase(bool internal) : internal_(internal) {}
+    explicit SymbolBase(bool internal) : kind_(internal ? Kind::Internal : Kind::Amplitude) {}
+    explicit SymbolBase(WildcardAmplitude) : kind_(Kind::Wildcard) {}
 };
 
 }  // namespace Symbol

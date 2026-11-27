@@ -1,5 +1,0 @@
-Constants
-aH := 23161 / (sqrt2 ^ 29)
-aL := -119 / (sqrt2 ^ 29)
-Extended Dirac
-{aH |ss0001> + aL ∑ |i|=5, i≠s |si0001> : |s|=5}

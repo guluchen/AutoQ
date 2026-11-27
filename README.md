@@ -72,14 +72,17 @@ Positionals:
 Options:
   -h,--help                   Print this help message and exit.
   --loopsum                   Summarize loops using symbolic execution.
+  --color-inclusion           Require the postcondition to match every output along the same sequence of colors.
   -l,--latex                  Print the statistics for tables in LaTeX.
 ```
+Use `autoq ver --color-inclusion pre.lsta circuit.qasm post.lsta` to check choice-sequence inclusion. For every accepting color sequence of the circuit output, the postcondition must match that output using the same color at each level. See the [LSTA format description](./docs/lsta_description.md) for the interaction with wildcard amplitudes.
+
 One noteworthy feature of this tool is its support for loop summarization in circuits that use the specific syntax `for int i in [x:y] { C }`, as described in the [QASM format documentation](./docs/qasm_description.md). To enable the loop summarization algorithm, include the `--loopsum` flag when using the `ex` or `ver` subcommands.
 
-This is one example usage.
+This [clean ancilla example](./demo/README.md) checks that `q[1]` returns to `|0⟩` for every data basis input. The `.lsta` postcondition uses `*` for unconstrained amplitudes.
 ```
-$ ./build/cli/autoq ver benchmarks/all/Grover/03/pre.hsl benchmarks/all/Grover/03/circuit.qasm benchmarks/all/Grover/03/post.hsl
-The quantum program has [5] qubits and [52] gates. The verification process [OK] in [0.1s] with [77MB] memory usage.
+./build/cli/autoq ver --color-inclusion \
+    demo/ancilla-q1/pre.lsta demo/ancilla-q1/circuit.qasm demo/ancilla-q1/post.lsta
 ```
 
 ---

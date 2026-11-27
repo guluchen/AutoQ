@@ -17,7 +17,7 @@ namespace AUTOQ
 struct AUTOQ::Symbol::Predicate : std::string, AUTOQ::Symbol::SymbolBase<Predicate> {
     using std::string::string;
     inline static std::map<std::pair<Predicate, Predicate>, Predicate> mulmap;
-    Predicate(const std::string& str) : std::string(str), SymbolBase<Predicate>(false) {} // leaf: internal_ = false
+    Predicate(const std::string& str) : std::string(str), SymbolBase<Predicate>(false) {} // leaf
     template <typename T, typename = std::enable_if_t<std::is_convertible<T, boost::multiprecision::cpp_int>::value>>
     Predicate(T qubit) : std::string(static_cast<boost::multiprecision::cpp_int>(qubit).str()), SymbolBase<Predicate>(true) {} // internal
 

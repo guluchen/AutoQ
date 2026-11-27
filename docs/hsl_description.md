@@ -105,7 +105,7 @@ Note that you can also substitute symbols as follows: `!=` for `â‰ `, `<=` or `â
 ---
 
 ### # Example
-The following `*.hsl` file is adapted from [benchmarks/all/GroverSym/04/post.hsl](../benchmarks/all/GroverSym/04/post.hsl). It specifies the postcondition of Grover's algorithm where the expected hidden string can be arbitrary. The specified set is<br>
+The following `*.hsl` example specifies the postcondition of Grover's algorithm where the expected hidden string can be arbitrary. The specified set is<br>
 
 $$
 \begin{aligned}

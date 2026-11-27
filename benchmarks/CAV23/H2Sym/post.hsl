@@ -1,7 +1,0 @@
-Extended Dirac
-{p1 |0> + p2 |1>}
-Constraints
-real(p1) = real(x)
-imag(p1) = imag(x)
-real(p2) = real(y)
-imag(p2) = imag(y)

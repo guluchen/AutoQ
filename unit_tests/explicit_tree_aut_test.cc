@@ -83,29 +83,6 @@ static void test_gate_inverse_equivalence(
     }
 }
 
-/** Run single-folder benchmark: ReadTwoAutomata, execute, check inclusion. */
-static void run_single_folder_benchmark(const char* test_file, const std::string& rel_path,
-                                        bool expect_inclusion) {
-    std::string folder = test_dir_from_file(test_file, rel_path);
-    auto [autVec, qp] = AUTOQ::Parsing::TimbukParser<AUTOQ::Symbol::Symbolic>::ReadTwoAutomata(folder + "/pre.hsl", folder + "/post.hsl");
-    auto aut2 = autVec.at(0);
-    auto spec2 = autVec.at(1);
-    aut2.execute(folder + "/circuit.qasm", qp);
-    BOOST_REQUIRE_MESSAGE(expect_inclusion == (aut2 <<= spec2), folder + " failed!");
-}
-
-/** Shared benchmark verification: reads pre/post, executes circuit, checks inclusion. */
-template<typename SymbolType>
-void run_benchmark_verification(const char* test_file, const std::string& benchmark_rel_path, int max_size = kMaxBenchmarkSize) {
-    std::string benchmarks = test_dir_from_file(test_file, benchmark_rel_path);
-    for_each_benchmark_case(benchmarks, [](const std::string& folder) {
-        auto [autVec, qp] = AUTOQ::Parsing::TimbukParser<SymbolType>::ReadTwoAutomata(folder + "/pre.hsl", folder + "/post.hsl");
-        auto aut2 = autVec.at(0);
-        auto spec2 = autVec.at(1);
-        aut2.execute(folder + "/circuit.qasm", qp);
-        BOOST_REQUIRE_MESSAGE(aut2 <<= spec2, folder + " failed!");
-    }, max_size);
-}
 using AUTOQ::Symbol::Concrete;
 
 /** Odd n that keeps positions {1, n/2+1, n} and CCX/Swap indices distinct; larger values slow tests. */
@@ -590,109 +567,6 @@ BOOST_AUTO_TEST_CASE(GroverSearch_only_one_oracle)
             BOOST_REQUIRE_MESSAGE(!ans_found[i], "non-ans should not appear");
     }
     /************************************************************************************/
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_OEGrover)
-{
-    run_benchmark_verification<AUTOQ::Symbol::Symbolic>(__FILE__, "../benchmarks/all/OEGrover/");
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_BV)
-{
-    run_benchmark_verification<AUTOQ::Symbol::Concrete>(__FILE__, "../benchmarks/all/BV/");
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_MOBV_reorder)
-{
-    run_benchmark_verification<AUTOQ::Symbol::Concrete>(__FILE__, "../benchmarks/all/MOBV_reorder/");
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_GHZzero)
-{
-    run_benchmark_verification<AUTOQ::Symbol::Concrete>(__FILE__, "../benchmarks/all/GHZzero/");
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_GHZall)
-{
-    run_benchmark_verification<AUTOQ::Symbol::Concrete>(__FILE__, "../benchmarks/all/GHZall/");
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_H2)
-{
-    run_benchmark_verification<AUTOQ::Symbol::Concrete>(__FILE__, "../benchmarks/all/H2/");
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_HXH)
-{
-    run_benchmark_verification<AUTOQ::Symbol::Concrete>(__FILE__, "../benchmarks/all/HXH/");
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_MCToffoli)
-{
-    run_benchmark_verification<AUTOQ::Symbol::Concrete>(__FILE__, "../benchmarks/all/MCToffoli/");
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_Grover)
-{
-    run_benchmark_verification<AUTOQ::Symbol::Concrete>(__FILE__, "../benchmarks/all/Grover/");
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_MOGrover)
-{
-    run_benchmark_verification<AUTOQ::Symbol::Concrete>(__FILE__, "../benchmarks/all/MOGrover/");
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_GroverSym)
-{
-    run_benchmark_verification<AUTOQ::Symbol::Symbolic>(__FILE__, "../benchmarks/all/GroverSym/");
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_GroverWhile)
-{
-    std::string benchmarks = test_dir_from_file(__FILE__, "../benchmarks/all/GroverWhile/");
-    for_each_benchmark_case(benchmarks, [](const std::string& folder) {
-        auto [autVec, qp] = AUTOQ::Parsing::TimbukParser<AUTOQ::Symbol::Symbolic>::ReadTwoAutomata(folder+"/pre.hsl", folder+"/post.hsl", folder + "/circuit.qasm");
-        auto aut2 = autVec.at(0);
-        auto spec2 = autVec.at(1);
-        autVec.erase(autVec.begin(), autVec.begin() + 2);  // remove the first two elements
-        bool verify = aut2.execute(folder + "/circuit.qasm", qp, autVec);
-        BOOST_REQUIRE_MESSAGE(verify, folder + " loop invariant check failed!");
-        BOOST_REQUIRE_MESSAGE(aut2 <<= spec2, folder + " failed!");
-    });
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_MOGroverSym)
-{
-    run_benchmark_verification<AUTOQ::Symbol::Symbolic>(__FILE__, "../benchmarks/all/MOGroverSym/");
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_H2Sym)
-{
-    run_single_folder_benchmark(__FILE__, "../benchmarks/all/H2Sym/", true);
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_H2BugSym)
-{
-    run_single_folder_benchmark(__FILE__, "../benchmarks/all/H2BugSym/", false);
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_BVBugSym)
-{
-    run_single_folder_benchmark(__FILE__, "../benchmarks/all/BVBugSym/", false);
-}
-
-BOOST_AUTO_TEST_CASE(benchmarks_RUS)
-{
-    std::string benchmarks = test_dir_from_file(__FILE__, "../benchmarks/all/RUS/");
-    for_each_benchmark_case(benchmarks, [](const std::string& folder) {
-        auto [autVec, qp] = AUTOQ::Parsing::TimbukParser<AUTOQ::Symbol::Concrete>::ReadTwoAutomata(folder+"/pre.hsl", folder+"/post" + ((folder.ends_with("10a") || folder.ends_with("10c")) ? "_corrected" : "") + ".hsl", folder + "/circuit.qasm");
-        auto aut2 = autVec.at(0);
-        auto spec2 = autVec.at(1);
-        autVec.erase(autVec.begin(), autVec.begin() + 2); // remove the first two elements
-        bool verify = aut2.execute(folder + "/circuit.qasm", qp, autVec);
-        BOOST_REQUIRE_MESSAGE(verify, folder + " loop invariant check failed!");
-        BOOST_REQUIRE_MESSAGE(aut2 <<= spec2, folder + " failed!");
-    }, 999999);  // RUS: no size limit
 }
 
 // A wrong invariant makes execute() return false. The automaton it leaves

@@ -43,6 +43,8 @@ namespace AUTOQ
     typedef Automata<Symbol::Index> IndexAutomata;
     typedef Automata<Symbol::Constrained> ConstrainedAutomata;
 
+    enum class InclusionMode { IndependentColors, SameColorSequence };
+
     /// Per-automaton execution and inclusion stats. Copies share one object.
     /// Assignment keeps the destination's object, so replacing the transition
     /// relation does not mix in another automaton's counters.
@@ -221,6 +223,7 @@ public:
 	/******************************************************/
     /* inclusion.cc: checks language inclusion of two TAs */
     bool operator_scaled_inclusion_with_renaming(Automata o) const;
+    bool scaled_inclusion(Automata o, InclusionMode mode) const;
     bool operator<<=(Automata o) const;
     bool operator>>=(const Automata &o) const { return o <<= *this; }
     bool operator<=(const Automata &o) const;

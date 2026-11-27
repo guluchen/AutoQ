@@ -23,7 +23,7 @@ export const EXAMPLES = [
   {
     "id": "bv",
     "title": "Bernstein–Vazirani, 4 qubits",
-    "source": "benchmarks/all/BV/03",
+    "source": "https://github.com/fmlab-iis/AutoQ/tree/7eed39ad7ba5615a87c3f532a24f866e08967c12/benchmarks/all/BV/03",
     "mode": "ver",
     "files": [
       {
@@ -43,7 +43,7 @@ export const EXAMPLES = [
   {
     "id": "grover-sym",
     "title": "Grover search, symbolic amplitudes",
-    "source": "benchmarks/all/GroverSym/02",
+    "source": "https://github.com/fmlab-iis/AutoQ/tree/7eed39ad7ba5615a87c3f532a24f866e08967c12/benchmarks/all/GroverSym/02",
     "mode": "ver",
     "files": [
       {
@@ -63,7 +63,7 @@ export const EXAMPLES = [
   {
     "id": "grover-iteration",
     "title": "One Grover iteration: the marked state gains amplitude",
-    "source": "demo/GroverIteration",
+    "source": "https://github.com/fmlab-iis/AutoQ/tree/7eed39ad7ba5615a87c3f532a24f866e08967c12/demo/GroverIteration",
     "mode": "ver",
     "files": [
       {
@@ -83,7 +83,7 @@ export const EXAMPLES = [
   {
     "id": "grover",
     "title": "Grover search, 5 qubits",
-    "source": "benchmarks/all/Grover/03",
+    "source": "https://github.com/fmlab-iis/AutoQ/tree/7eed39ad7ba5615a87c3f532a24f866e08967c12/benchmarks/all/Grover/03",
     "mode": "ver",
     "files": [
       {
@@ -103,7 +103,7 @@ export const EXAMPLES = [
   {
     "id": "ifelse",
     "title": "Measurement and if",
-    "source": "benchmarks/all/control_mini/if-else",
+    "source": "https://github.com/fmlab-iis/AutoQ/tree/7eed39ad7ba5615a87c3f532a24f866e08967c12/benchmarks/all/control_mini/if-else",
     "mode": "ver",
     "files": [
       {
@@ -123,7 +123,7 @@ export const EXAMPLES = [
   {
     "id": "while",
     "title": "While loop with an invariant",
-    "source": "benchmarks/all/control_mini/while",
+    "source": "https://github.com/fmlab-iis/AutoQ/tree/7eed39ad7ba5615a87c3f532a24f866e08967c12/benchmarks/all/control_mini/while",
     "mode": "ver",
     "files": [
       {

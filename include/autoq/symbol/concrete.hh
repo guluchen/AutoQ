@@ -31,6 +31,7 @@ struct AUTOQ::Symbol::Concrete : AUTOQ::Symbol::SymbolBase<Concrete> {
     Concrete(T qubit) : SymbolBase<Concrete>(true), complex(qubit) {}
     Concrete(const Complex::Complex &c) : SymbolBase<Concrete>(false), complex(c) {}
     Concrete() : SymbolBase<Concrete>(false), complex(0) {} // prevent the compiler from complaining about the lack of default constructor
+    explicit Concrete(WildcardAmplitude wildcard) : SymbolBase<Concrete>(wildcard), complex(0) {}
 
     boost::multiprecision::cpp_int qubit() const {
         if (!is_internal()) {
@@ -48,6 +49,8 @@ struct AUTOQ::Symbol::Concrete : AUTOQ::Symbol::SymbolBase<Concrete> {
     friend std::ostream& operator<<(std::ostream& os, const Concrete& obj) {
         if (obj.is_internal())
             os << obj.qubit().str();
+        else if (obj.is_wildcard())
+            os << '*';
         else
             os << obj.complex;
         return os;
@@ -63,12 +66,11 @@ struct AUTOQ::Symbol::Concrete : AUTOQ::Symbol::SymbolBase<Concrete> {
         }
         return Concrete(complex.operator*(o.complex));
     }
-    bool valueEqual(const Concrete &o) const { return is_internal() == o.is_internal() && complex.valueEqual(o.complex); }
-    bool operator==(const Concrete &o) const { return is_internal() == o.is_internal() && complex == o.complex; }
+    bool valueEqual(const Concrete &o) const { return kind_ == o.kind_ && (is_wildcard() || complex.valueEqual(o.complex)); }
+    bool operator==(const Concrete &o) const { return kind_ == o.kind_ && (is_wildcard() || complex == o.complex); }
     bool operator<(const Concrete &o) const {
-        if (is_internal() && !o.is_internal()) return true;
-        if (o.is_internal() && !is_internal()) return false;
-        return complex < o.complex;
+        if (kind_ != o.kind_) return kind_ < o.kind_;
+        return !is_wildcard() && complex < o.complex;
     }
     Concrete omega_multiplication(int rotation=1) {
         // A negative rotation is a clockwise turn. counterclockwise folds it
@@ -98,6 +100,7 @@ struct AUTOQ::Symbol::Concrete : AUTOQ::Symbol::SymbolBase<Concrete> {
 namespace boost {
     template <> struct hash<AUTOQ::Symbol::Concrete> {
         size_t operator()(const AUTOQ::Symbol::Concrete& obj) const {
+            if (obj.is_wildcard()) return boost::hash_value('*');
             std::size_t seed = 0;
             boost::hash_combine(seed, obj.is_internal());
             boost::hash_combine(seed, obj.complex);

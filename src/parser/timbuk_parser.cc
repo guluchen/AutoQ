@@ -40,16 +40,16 @@
 #include "autoq/parsing/parser/timbuk_parser_dirac.hh"
 #include "autoq/parsing/parser/timbuk_parser_loader.hh"
 
-std::variant<AUTOQ::Automata<AUTOQ::Symbol::Concrete>, AUTOQ::Automata<AUTOQ::Symbol::Symbolic>, AUTOQ::Automata<AUTOQ::Symbol::Predicate>> ReadAutomaton(const std::string& filepath) {
+std::variant<AUTOQ::Automata<AUTOQ::Symbol::Concrete>, AUTOQ::Automata<AUTOQ::Symbol::Symbolic>, AUTOQ::Automata<AUTOQ::Symbol::Predicate>> ReadAutomaton(const std::string& filepath, AUTOQ::Parsing::AutomatonRole role) {
     std::string fileContents = AUTOQ::Util::ReadFile(filepath);
     if (fileContents.find("Predicates") != std::string::npos) {
-        return AUTOQ::Parsing::TimbukParser<AUTOQ::Symbol::Predicate>::ReadAutomaton(filepath);
+        return AUTOQ::Parsing::TimbukParser<AUTOQ::Symbol::Predicate>::ReadAutomaton(filepath, role);
     } else {
         bool encountered_undefined = false;
-        auto aut = AUTOQ::Parsing::TimbukParser<AUTOQ::Symbol::Concrete>::ReadAutomaton(filepath, false, &encountered_undefined);
+        auto aut = AUTOQ::Parsing::TimbukParser<AUTOQ::Symbol::Concrete>::ReadAutomaton(filepath, false, &encountered_undefined, role);
         if (!encountered_undefined)
             return aut;
-        return AUTOQ::Parsing::TimbukParser<AUTOQ::Symbol::Symbolic>::ReadAutomaton(filepath);
+        return AUTOQ::Parsing::TimbukParser<AUTOQ::Symbol::Symbolic>::ReadAutomaton(filepath, role);
     }
 }
 

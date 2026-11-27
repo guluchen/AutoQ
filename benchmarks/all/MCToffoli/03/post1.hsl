@@ -1,6 +1,0 @@
-Constants
-c1 := 1
-Extended Dirac
-{ c1 |i001> : |i|=3 }
-∪ { c1 |111000>}
-\ { c1 |111001>}

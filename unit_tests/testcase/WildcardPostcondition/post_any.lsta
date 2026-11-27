@@ -1,0 +1,5 @@
+Root States root
+Transitions
+[1,1](data,data) -> root
+[2,1](any,any) -> data
+[*,1] -> any

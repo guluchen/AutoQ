@@ -1,0 +1,7 @@
+Root States first second
+Transitions
+[1,1](data,data) -> first
+[1,2](data,data) -> second
+[2,1](any,z) -> data
+[*,1] -> any
+[0,1] -> z

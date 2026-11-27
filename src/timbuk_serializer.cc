@@ -74,7 +74,7 @@ std::string TimbukSerializer::Serialize(Automata<Symbol> desc)
         THROW_AUTOQ_ERROR("This kind of symbol is still unsupported!");
     std::map<Symbol, size_t> leafMap;
     for (const auto &t : desc.transitions) {
-        if (t.first.is_leaf()) {
+        if (t.first.is_leaf() && !t.first.symbol().is_wildcard()) {
             const auto &sym = t.first.symbol();
             auto it = leafMap.find(sym);
             if (it == leafMap.end()) {
@@ -111,7 +111,9 @@ std::string TimbukSerializer::Serialize(Automata<Symbol> desc)
             const auto &q = t2.first;
             for (const auto &in : t2.second) {
                 if (t.first.is_leaf()) {
-                    if constexpr(std::is_same_v<Symbol, AUTOQ::Symbol::Concrete>)
+                    if (t.first.symbol().is_wildcard())
+                        result += Convert::ToString(t.first);
+                    else if constexpr(std::is_same_v<Symbol, AUTOQ::Symbol::Concrete>)
                         result += "[c" + std::to_string(leafMap.at(t.first.symbol())) + "," + Convert::ToString(t.first.tag()) + "]";
                     else if constexpr(std::is_same_v<Symbol, AUTOQ::Symbol::Symbolic>)
                         result += "[e" + std::to_string(leafMap.at(t.first.symbol())) + "," + Convert::ToString(t.first.tag()) + "]";

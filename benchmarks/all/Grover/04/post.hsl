@@ -1,5 +1,0 @@
-Constants
-aH := 251 / (sqrt2 ^ 16)
-aL := -13 / (sqrt2 ^ 16)
-Extended Dirac
-{aH |0101001> + aL ∑ |i|=4, i≠0101 |i001>}

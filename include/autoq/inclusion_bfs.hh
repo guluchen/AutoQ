@@ -13,9 +13,11 @@
  *   void begin_vertex();                          // a new successor vertex is started
  *   bool leaf_pairs_consistent(const LeafPairs&); // extra check on a combination of B's transitions
  *   void record_feasible(const LeafPairs&);       // a consistent combination was found
- *   bool leaf_vertex_fails(const Aut&, const Aut&); // decide a leaf vertex that B can follow
+ *   bool leaf_vertex_fails(const Aut&, const Aut&, bool has_match); // decide a leaf vertex
  * where LeafPairs is std::set<std::pair<Symbol, Symbol>> (A's leaf symbol, B's leaf symbol).
  */
+#include <bit>
+#include <limits>
 #include <map>
 #include <queue>
 #include <set>
@@ -31,12 +33,17 @@ bool inclusion_bfs_holds(
     const AUTOQ::Automata<Symbol>& autB,
     std::vector<std::map<typename AUTOQ::Automata<Symbol>::SymbolTag, typename AUTOQ::Automata<Symbol>::StateVector>>& transA,
     std::vector<std::map<Symbol, std::map<typename AUTOQ::Automata<Symbol>::Tag, typename AUTOQ::Automata<Symbol>::StateVector>>>& transB,
-    LeafPolicy& policy)
+    LeafPolicy& policy,
+    InclusionMode mode)
 {
     using Aut = AUTOQ::Automata<Symbol>;
-    // With no root states B accepts nothing, so A ⊆ B iff A is empty (#40).
-    if (autB.finalStates.empty())
-        return autA.empty();
+    const bool same_color_sequence = mode == InclusionMode::SameColorSequence;
+    constexpr auto any_color = std::numeric_limits<typename Aut::Tag>::max();
+    // With no roots B accepts nothing. A symbolic A may still have no feasible inputs.
+    if (autB.finalStates.empty()) {
+        if (autA.empty()) return true;
+        return same_color_sequence && !policy.leaf_vertex_fails(autA, autB, false);
+    }
     // Main Routine: Graph Traversal
     typedef std::map<typename Aut::State, typename Aut::StateSet> Cell;
     typedef std::set<Cell> Vertex;
@@ -63,15 +70,16 @@ bool inclusion_bfs_holds(
         std::map<typename Aut::State, typename std::map<typename Aut::SymbolTag, typename Aut::StateVector>::iterator> A_transition_combinations;
         for (const auto& qA_qBs : *(vertex.begin())) {
             auto qA = qA_qBs.first;
+            if (transA[qA].empty()) break;
             A_transition_combinations[qA] = transA[qA].begin();
         }
+        if (A_transition_combinations.size() != vertex.begin()->size()) continue;
         bool have_listed_all_combinationsA = false;
         do { // Construct one new vertex for each possible combination of A's transitions.
             /************************************************************/
             // Check if the current combination is color-consistent.
             // If not, skip this one and continue to the next combination.
-            unsigned all_used_colors = ~0;
-            bool color_consistent = true;
+            auto all_used_colors = any_color;
             // Check if there is no any children state derived from the current combination.
             // If it is true, then we shall not create new vertices derived from this one,
             // and we shall judge whether the inclusion does not hold right now.
@@ -85,11 +93,15 @@ bool inclusion_bfs_holds(
                 if (kv.second->second.size() > 0)
                     is_leaf_vertex = false;
             }
-            color_consistent = (all_used_colors != 0);
             /*************************************************************************/
             // Only pick this combination of A's transitions if it is color-consistent.
-            INCLUSION_DEBUG("ARE " << (color_consistent ? "" : "NOT ") << "COLOR-CONSISTENT.");
-            if (color_consistent) {
+            INCLUSION_DEBUG("ARE " << (all_used_colors != 0 ? "" : "NOT ") << "COLOR-CONSISTENT.");
+            auto remaining_colors = all_used_colors;
+            while (remaining_colors != 0) {
+                // A transition combination can admit several colors. In same-sequence mode,
+                // each color has its own set of possible B runs and must be checked separately.
+                const auto allowed_b_colors = same_color_sequence ? std::bit_floor(remaining_colors) : any_color;
+                remaining_colors &= ~allowed_b_colors;
                 Vertex vertex2;
                 bool vertex_fail = true; // is_leaf_vertex
                 policy.begin_vertex();
@@ -139,9 +151,10 @@ bool inclusion_bfs_holds(
                                     B_transition_combinations_data[qB][desired_symbol2] = transB[qB][desired_symbol2].begin();
                                 }
                             } else { // if (desired_symbol.is_leaf()) {
-                                for (const auto &predicate_v : transB[qB]) {
+                                for (auto &predicate_v : transB[qB]) {
                                     const auto &predicate = predicate_v.first;
-                                    B_transition_combinations_data[qB][predicate] = transB[qB][predicate].begin();
+                                    if (predicate.is_leaf())
+                                        B_transition_combinations_data[qB][predicate] = predicate_v.second.begin();
                                 }
                             }
                             if (B_transition_combinations_data[qB].empty()) {
@@ -169,7 +182,7 @@ bool inclusion_bfs_holds(
                         /*************************************************************/
                         // Check if the current combination is color-consistent.
                         // If not, simply construct the unique cell without B's states!
-                        unsigned all_used_colors = ~0;
+                        auto all_used_colors = allowed_b_colors;
                         INCLUSION_DEBUG("B's CURRENTLY CONSIDERED TRANSITIONS: ");
                         std::set<std::pair<Symbol, Symbol>> leaf_pairs_of_one_new_cell;
                         for (const auto &kv : B_transition_combinations) { // Print the current combination
@@ -178,8 +191,11 @@ bool inclusion_bfs_holds(
                                 + AUTOQ::Util::Convert::ToString(B_transition_combinations_data.at(kv.first).at(kv.second)->second)
                                 + " -> " + AUTOQ::Util::Convert::ToString(kv.first));
                             all_used_colors &= B_transition_combinations_data.at(kv.first).at(kv.second)->first;
-                            for (const auto &desired_symbol : As_symbols_associated_with_Bs_states.at(kv.first))
-                                leaf_pairs_of_one_new_cell.insert({desired_symbol, kv.second});
+                            // Wildcard leaves participate in color synchronization without imposing an amplitude equation.
+                            if (!kv.second.is_wildcard()) {
+                                for (const auto &desired_symbol : As_symbols_associated_with_Bs_states.at(kv.first))
+                                    leaf_pairs_of_one_new_cell.insert({desired_symbol, kv.second});
+                            }
                         }
                         bool color_consistent2 = (all_used_colors != 0) && policy.leaf_pairs_consistent(leaf_pairs_of_one_new_cell);
                         /*****************************************/
@@ -242,11 +258,7 @@ bool inclusion_bfs_holds(
                 }
                 if (is_leaf_vertex) { // only when considering some particular transitions
                     INCLUSION_DEBUG("THE VERTEX: " << AUTOQ::Util::Convert::ToString(vertex2) << " LEADS A TO NOTHING OF STATES, SO WE SHALL NOT PUSH THIS VERTEX BUT CHECK IF B HAS POSSIBLE SIMULTANEOUS TRANSITION COMBINATIONS LEADING TO THIS VERTEX.");
-                    if (vertex_fail) {
-                        INCLUSION_DEBUG("UNFORTUNATELY B HAS NO POSSIBLE TRANSITION COMBINATIONS, SO THE INCLUSION DOES NOT HOLD :(");
-                        return false;
-                    }
-                    if (policy.leaf_vertex_fails(autA, autB)) {
+                    if ((vertex_fail && !same_color_sequence) || policy.leaf_vertex_fails(autA, autB, !vertex_fail)) {
                         INCLUSION_DEBUG("UNFORTUNATELY B HAS NO POSSIBLE TRANSITION COMBINATIONS, SO THE INCLUSION DOES NOT HOLD :(");
                         return false;
                     }

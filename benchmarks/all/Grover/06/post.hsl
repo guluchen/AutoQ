@@ -1,5 +1,0 @@
-Constants
-aH := 133988401 / (sqrt2 ^ 54)
-aL := -988079 / (sqrt2 ^ 54)
-Extended Dirac
-{aH |01010100001> + aL ∑ |i|=6, i≠010101 |i00001>}

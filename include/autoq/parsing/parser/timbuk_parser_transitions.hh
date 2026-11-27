@@ -71,7 +71,7 @@ bool is_integer_literal(const std::string& token) {
 }
 
 template <typename Symbol>
-AUTOQ::Automata<Symbol> parse_automaton(const std::string& str, const std::map<std::string, AUTOQ::Complex::Complex> &constants, const std::map<std::string, std::string> &predicates, bool throw_on_undefined, bool* out_encountered_undefined) {
+AUTOQ::Automata<Symbol> parse_automaton(const std::string& str, const std::map<std::string, AUTOQ::Complex::Complex> &constants, const std::map<std::string, std::string> &predicates, bool throw_on_undefined, bool* out_encountered_undefined, AUTOQ::Parsing::AutomatonRole role) {
     bool start_transitions = false;
     bool already_root_states = false;
     AUTOQ::Automata<Symbol> result;
@@ -145,9 +145,20 @@ AUTOQ::Automata<Symbol> parse_automaton(const std::string& str, const std::map<s
                 } else
                     t = it->second; //atoi(rhs.c_str());
                 if (t > result.stateNum) result.stateNum = t;
+                using Aut = AUTOQ::Automata<Symbol>;
+                auto [token, color] = split_colored_label<typename Aut::Tag>(lhs, invalid_trans_str);
+                if (token == "*") {
+                    if constexpr (std::is_constructible_v<Symbol, AUTOQ::Symbol::WildcardAmplitude>) {
+                        if (role == AUTOQ::Parsing::AutomatonRole::Postcondition) {
+                            require_disjoint_color<Symbol>(result, t, color, rhs, str);
+                            result.transitions[typename Aut::SymbolTag(Symbol(AUTOQ::Symbol::WildcardAmplitude{}), color)][t].insert(typename Aut::StateVector{});
+                            continue;
+                        }
+                    }
+                    THROW_AUTOQ_ERROR("Wildcard amplitudes (*) are only supported in .lsta postconditions.");
+                }
                 if constexpr(std::is_same_v<Symbol, AUTOQ::ConcreteAutomata::Symbol>) {
                     try {
-                        auto [token, color] = split_colored_label<AUTOQ::ConcreteAutomata::Tag>(lhs, invalid_trans_str);
                         if (is_integer_literal(token)) {
                             // No children: the number is an amplitude. Symbol(int) would build a qubit.
                             auto value = AUTOQ::Complex::Complex(boost::multiprecision::cpp_int(token));
@@ -175,7 +186,6 @@ AUTOQ::Automata<Symbol> parse_automaton(const std::string& str, const std::map<s
                     }
                 } else if constexpr(std::is_same_v<Symbol, AUTOQ::PredicateAutomata::Symbol>) {
                     try {
-                        auto [token, color] = split_colored_label<AUTOQ::PredicateAutomata::Tag>(lhs, invalid_trans_str);
                         // No children: a number is not a qubit. Look the leaf up as a predicate.
                         auto it = predicates.find(token);
                         if (it == predicates.end()) {
@@ -194,7 +204,6 @@ AUTOQ::Automata<Symbol> parse_automaton(const std::string& str, const std::map<s
                         THROW_AUTOQ_ERROR(invalid_trans_str);
                     }
                 } else { // if constexpr(std::is_same_v<Symbol, AUTOQ::SymbolicAutomata::Symbol>) {
-                    auto [token, color] = split_colored_label<AUTOQ::SymbolicAutomata::Tag>(lhs, invalid_trans_str);
                     EvaluationVisitor<>::SymbolicComplexParser scp(token, constants);
                     auto sym = Symbol(scp.getSymbolicComplex());
                     require_disjoint_color<Symbol>(result, t, color, rhs, str);
@@ -254,8 +263,10 @@ AUTOQ::Automata<Symbol> parse_automaton(const std::string& str, const std::map<s
                 if (symbol.size() < 2 || symbol.front() != '[' || symbol.back() != ']')
                     THROW_AUTOQ_ERROR(invalid_trans_str);
                 symbol = symbol.substr(1, symbol.length()-2);
+                auto [token, color] = split_colored_label<typename AUTOQ::Automata<Symbol>::Tag>(symbol, invalid_trans_str);
+                if (token == "*")
+                    THROW_AUTOQ_ERROR("Wildcard amplitudes (*) cannot label transitions with children.");
                 if constexpr(std::is_same_v<Symbol, AUTOQ::ConcreteAutomata::Symbol>) {
-                    auto [token, color] = split_colored_label<AUTOQ::ConcreteAutomata::Tag>(symbol, invalid_trans_str);
                     try {
                         auto sym = Symbol(boost::lexical_cast<int>(token));
                         require_disjoint_color<Symbol>(result, t, color, rhs, str);
@@ -268,14 +279,12 @@ AUTOQ::Automata<Symbol> parse_automaton(const std::string& str, const std::map<s
                     // if (boost::lexical_cast<int>(symbol) == 1)
                     //     result.finalStates.push_back(t);
                 } else if constexpr(std::is_same_v<Symbol, AUTOQ::PredicateAutomata::Symbol>) {
-                    auto [token, color] = split_colored_label<AUTOQ::PredicateAutomata::Tag>(symbol, invalid_trans_str);
                     auto sym = parse_symbol<Symbol>(token);
                     require_disjoint_color<Symbol>(result, t, color, rhs, str);
                     result.transitions[AUTOQ::PredicateAutomata::SymbolTag(sym, AUTOQ::PredicateAutomata::Tag(color))][t].insert(state_vector);
                     // if (boost::lexical_cast<int>(sym.qubit()) == 1)
                     //     result.finalStates.push_back(t);
                 } else { // if constexpr(std::is_same_v<Symbol, AUTOQ::SymbolicAutomata::Symbol>) {
-                    auto [token, color] = split_colored_label<AUTOQ::SymbolicAutomata::Tag>(symbol, invalid_trans_str);
                     auto sym = parse_symbol<Symbol>(token);
                     require_disjoint_color<Symbol>(result, t, color, rhs, str);
                     result.transitions[AUTOQ::SymbolicAutomata::SymbolTag(sym, AUTOQ::SymbolicAutomata::Tag(color))][t].insert(state_vector);

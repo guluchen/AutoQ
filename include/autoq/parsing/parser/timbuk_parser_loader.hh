@@ -36,11 +36,11 @@ inline void append_constraints_as_smt(std::string &target, const std::string &co
 }  // namespace AUTOQ::Parsing
 
 template <typename Symbol>
-AUTOQ::Automata<Symbol> AUTOQ::Parsing::TimbukParser<Symbol>::ReadAutomaton(const std::string& filepath) {
-    return AUTOQ::Parsing::TimbukParser<Symbol>::ReadAutomaton(filepath, true, nullptr);
+AUTOQ::Automata<Symbol> AUTOQ::Parsing::TimbukParser<Symbol>::ReadAutomaton(const std::string& filepath, AutomatonRole role) {
+    return AUTOQ::Parsing::TimbukParser<Symbol>::ReadAutomaton(filepath, true, nullptr, role);
 }
 template <typename Symbol>
-AUTOQ::Automata<Symbol> AUTOQ::Parsing::TimbukParser<Symbol>::ReadAutomaton(const std::string& filepath, bool throw_on_undefined, bool* out_encountered_undefined) {
+AUTOQ::Automata<Symbol> AUTOQ::Parsing::TimbukParser<Symbol>::ReadAutomaton(const std::string& filepath, bool throw_on_undefined, bool* out_encountered_undefined, AutomatonRole role) {
 try {
     AUTOQ::Automata<Symbol> result;
     std::string automaton, constraints;
@@ -58,7 +58,7 @@ try {
     std::tie(automaton, constraints) = AUTOQ::Parsing::split_automaton_and_constraints(fileContents);
     if (is_lsta) {
         std::map<std::string, std::string> dummy_predicates;
-        result = parse_automaton<Symbol>(automaton, constants, dummy_predicates, throw_on_undefined, out_encountered_undefined);
+        result = parse_automaton<Symbol>(automaton, constants, dummy_predicates, throw_on_undefined, out_encountered_undefined, role);
     } else {
         result = parse_extended_dirac<Symbol>(automaton, constants, constraints, throw_on_undefined, out_encountered_undefined);
     }
@@ -74,7 +74,7 @@ try {
 }
 
 template <typename Symbol>
-std::pair<std::vector<AUTOQ::Automata<Symbol>>, std::vector<int>> AUTOQ::Parsing::TimbukParser<Symbol>::ReadTwoAutomata(const std::string& filepath1, const std::string& filepath2, const std::string &circuitPath) {
+std::pair<std::vector<AUTOQ::Automata<Symbol>>, std::vector<int>> AUTOQ::Parsing::TimbukParser<Symbol>::ReadTwoAutomata(const std::string& filepath1, const std::string& filepath2, const std::string &circuitPath, AutomatonRole secondRole) {
 try {
     const bool hsl = boost::algorithm::ends_with(filepath1, ".hsl") && boost::algorithm::ends_with(filepath2, ".hsl");
     const bool lsta = boost::algorithm::ends_with(filepath1, ".lsta") && boost::algorithm::ends_with(filepath2, ".lsta");
@@ -108,7 +108,8 @@ try {
         autVec.reserve(filepathVec.size());
         for (size_t i = 0; i < filepathVec.size(); ++i) {
             std::map<std::string, std::string> dummy_predicates;
-            autVec.emplace_back(parse_automaton<Symbol>(automatonVec[i], constants[i], dummy_predicates, true, nullptr));
+            const auto role = i == 1 ? secondRole : AutomatonRole::StateSet;
+            autVec.emplace_back(parse_automaton<Symbol>(automatonVec[i], constants[i], dummy_predicates, true, nullptr, role));
         }
     }
 
