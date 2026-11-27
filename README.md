@@ -32,6 +32,10 @@ case_dir=demo/ancilla-q1
 
 ## Wildcards and color sequences
 
+In a transition label `[symbol,C]`, `C` is a bitmask written as a decimal integer. Masks `1` (`0b01`) and `2` (`0b10`) each allow one choice. Mask `3` (`0b11`) allows either choice. Write `3` in the `.lsta` file. The literal `11` would be read as decimal eleven (`0b1011`).
+
+At each level, the verifier takes the bitwise AND of the masks of the transitions used at that level. For example, `3 & 1 = 1`, so those two masks can synchronize on the choice with mask `1`. Masks `1` and `2` share no bit, so they cannot synchronize.
+
 - `[*,C] -> q` matches any complex amplitude, including zero. Each leaf matches independently, even when multiple leaves use the same LSTA state.
 - `[0,C] -> q` requires an exact zero amplitude. The demos put this condition on every leaf where the clean ancilla bit is `1`.
 - With `--color-inclusion`, each accepting output run and each color sequence it admits must have a matching postcondition run using the same color at every level. Wildcard transitions still take part in color synchronization.
